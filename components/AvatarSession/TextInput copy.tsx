@@ -6,39 +6,29 @@ import { Select } from "../Select";
 import { Button } from "../Button";
 import { SendIcon } from "../Icons";
 import { useTextChat } from "../logic/useTextChat";
-import { useCustomRAGChat } from "../logic/useCustomRAGChat";
 import { Input } from "../Input";
 import { useConversationState } from "../logic/useConversationState";
 
 export const TextInput: React.FC = () => {
   const { sendMessage, sendMessageSync, repeatMessage, repeatMessageSync } =
     useTextChat();
-  const { sendRAGMessage } = useCustomRAGChat();
   const { startListening, stopListening } = useConversationState();
   const [taskType, setTaskType] = useState<TaskType>(TaskType.TALK);
   const [taskMode, setTaskMode] = useState<TaskMode>(TaskMode.ASYNC);
   const [message, setMessage] = useState("");
-  const [useRAG, setUseRAG] = useState(true); // Enable RAG by default
 
   const handleSend = useCallback(() => {
     if (message.trim() === "") {
       return;
     }
-    
-    if (useRAG) {
-      // Use RAG system
-      sendRAGMessage(message);
+    if (taskType === TaskType.TALK) {
+      taskMode === TaskMode.SYNC
+        ? sendMessageSync(message)
+        : sendMessage(message);
     } else {
-      // Use original HeyGen system
-      if (taskType === TaskType.TALK) {
-        taskMode === TaskMode.SYNC
-          ? sendMessageSync(message)
-          : sendMessage(message);
-      } else {
-        taskMode === TaskMode.SYNC
-          ? repeatMessageSync(message)
-          : repeatMessage(message);
-      }
+      taskMode === TaskMode.SYNC
+        ? repeatMessageSync(message)
+        : repeatMessage(message);
     }
     setMessage("");
   }, [
@@ -49,8 +39,6 @@ export const TextInput: React.FC = () => {
     sendMessageSync,
     repeatMessage,
     repeatMessageSync,
-    sendRAGMessage,
-    useRAG,
   ]);
 
   useEffect(() => {
@@ -76,39 +64,24 @@ export const TextInput: React.FC = () => {
   }, [message, previousText, startListening, stopListening]);
 
   return (
-    <div className="flex flex-row gap-2 items-center justify-center">
-      <div className="flex items-center gap-2">
-        <label className="text-white text-sm">RAG Mode:</label>
-        <input
-          type="checkbox"
-          checked={useRAG}
-          onChange={(e) => setUseRAG(e.target.checked)}
-          className="w-4 h-4"
-        />
-      </div>
-      
-      {!useRAG && (
-        <>
-          <Select
-            isSelected={(option) => option === taskType}
-            options={Object.values(TaskType)}
-            renderOption={(option) => option.toUpperCase()}
-            value={taskType.toUpperCase()}
-            onSelect={setTaskType}
-          />
-          <Select
-            isSelected={(option) => option === taskMode}
-            options={Object.values(TaskMode)}
-            renderOption={(option) => option.toUpperCase()}
-            value={taskMode.toUpperCase()}
-            onSelect={setTaskMode}
-          />
-        </>
-      )}
-      
+    <div className="flex flex-row gap-2 items-end w-full">
+      <Select
+        isSelected={(option) => option === taskType}
+        options={Object.values(TaskType)}
+        renderOption={(option) => option.toUpperCase()}
+        value={taskType.toUpperCase()}
+        onSelect={setTaskType}
+      />
+      <Select
+        isSelected={(option) => option === taskMode}
+        options={Object.values(TaskMode)}
+        renderOption={(option) => option.toUpperCase()}
+        value={taskMode.toUpperCase()}
+        onSelect={setTaskMode}
+      />
       <Input
         className="min-w-[500px]"
-        placeholder={useRAG ? "Ask a question about our products/services..." : `Type something for the avatar to ${taskType === TaskType.REPEAT ? "repeat" : "respond"}...`}
+        placeholder={`Type something for the avatar to ${taskType === TaskType.REPEAT ? "repeat" : "respond"}...`}
         value={message}
         onChange={setMessage}
       />

@@ -19,16 +19,18 @@ import { useVoiceChat } from "./logic/useVoiceChat";
 import { StreamingAvatarProvider, StreamingAvatarSessionState } from "./logic";
 import { LoadingIcon } from "./Icons";
 import { MessageHistory } from "./AvatarSession/MessageHistory";
+import { DocumentUpload } from "./DocumentUpload";
 
 import { AVATARS } from "@/app/lib/constants";
 
+// Use a guaranteed valid avatar ID
 const DEFAULT_CONFIG: StartAvatarRequest = {
   quality: AvatarQuality.Low,
-  avatarName: AVATARS[0].avatar_id,
+  avatarName: "Ann_Therapist_public", // Use a known working avatar
   knowledgeId: undefined,
   voice: {
-    rate: 1.5,
-    emotion: VoiceEmotion.EXCITED,
+    rate: 1.0, // Reduced from 1.5 to be safer
+    emotion: VoiceEmotion.NEUTRAL, // Changed from EXCITED to NEUTRAL
     model: ElevenLabsModel.eleven_flash_v2_5,
   },
   language: "en",
@@ -54,7 +56,7 @@ function InteractiveAvatar() {
       });
       const token = await response.text();
 
-      console.log("Access Token:", token); // Log the token to verify
+      console.log("Access Token:", token);
 
       return token;
     } catch (error) {
@@ -65,6 +67,8 @@ function InteractiveAvatar() {
 
   const startSessionV2 = useMemoizedFn(async (isVoiceChat: boolean) => {
     try {
+      console.log("Starting session with config:", config);
+      
       const newToken = await fetchAccessToken();
       const avatar = initAvatar(newToken);
 
@@ -106,6 +110,7 @@ function InteractiveAvatar() {
       }
     } catch (error) {
       console.error("Error starting avatar session:", error);
+      console.error("Error details:", error);
     }
   });
 
@@ -125,11 +130,18 @@ function InteractiveAvatar() {
   return (
     <div className="w-full flex flex-col gap-4">
       <div className="flex flex-col rounded-xl bg-zinc-900 overflow-hidden">
-        <div className="relative w-full aspect-video overflow-hidden flex flex-col items-center justify-center">
+        <div className={`relative overflow-hidden flex flex-col items-center justify-center ${
+          sessionState !== StreamingAvatarSessionState.INACTIVE 
+            ? "w-80 h-60 mx-auto my-4 border border-zinc-700 rounded-lg" 
+            : "w-full aspect-video"
+        }`}>
           {sessionState !== StreamingAvatarSessionState.INACTIVE ? (
             <AvatarVideo ref={mediaStream} />
           ) : (
-            <AvatarConfig config={config} onConfigChange={setConfig} />
+            <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto p-6">
+              <AvatarConfig config={config} onConfigChange={setConfig} />
+              <DocumentUpload />
+            </div>
           )}
         </div>
         <div className="flex flex-col gap-3 items-center justify-center p-4 border-t border-zinc-700 w-full">

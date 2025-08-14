@@ -2,10 +2,8 @@ import StreamingAvatar, {
   ConnectionQuality,
   StartAvatarRequest,
   StreamingEvents,
-  TaskType,
-  TaskMode,
 } from "@heygen/streaming-avatar";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 
 import {
   StreamingAvatarSessionState,
@@ -35,9 +33,6 @@ export const useStreamingAvatarSession = () => {
 
   useMessageHistory();
 
-  // Add a flag to prevent infinite loops
-  const isProcessingRAG = useRef(false);
-
   const init = useCallback(
     (token: string) => {
       avatarRef.current = new StreamingAvatar({
@@ -61,7 +56,6 @@ export const useStreamingAvatarSession = () => {
   const stop = useCallback(async () => {
     avatarRef.current?.off(StreamingEvents.STREAM_READY, handleStream);
     avatarRef.current?.off(StreamingEvents.STREAM_DISCONNECTED, stop);
-    avatarRef.current?.off(StreamingEvents.USER_END_MESSAGE, handleUserEndMessage);
     clearMessages();
     stopVoiceChat();
     setIsListening(false);
@@ -81,81 +75,6 @@ export const useStreamingAvatarSession = () => {
     setIsUserTalking,
     setIsAvatarTalking,
   ]);
-
-  // Fixed RAG handler with loop prevention
-  const handleUserEndMessage = useCallback(async (event: any) => {
-    // Prevent infinite loops
-    if (isProcessingRAG.current) {
-      console.log("🔄 RAG: Skipping - already processing");
-      return;
-    }
-  
-    const userQuestion = event.detail.message;
-    console.log("🎤 VOICE RAG: User question received:", userQuestion);
-  
-    // Skip if question is empty or too short
-    if (!userQuestion || userQuestion.trim().length < 3) {
-      console.log("🎤 VOICE RAG: Skipping - question too short");
-      return;
-    }
-  
-    // Skip if it's the avatar speaking (not user)
-    if (userQuestion.includes("I'm sorry") || userQuestion.includes("I don't have")) {
-      console.log("🎤 VOICE RAG: Skipping - avatar response detected");
-      return;
-    }
-  
-    isProcessingRAG.current = true;
-  
-    try {
-      console.log("�� VOICE RAG: Calling RAG API...");
-      
-      // Call RAG API
-      const response = await fetch('/api/rag-query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: userQuestion }),
-      });
-  
-      console.log("🎤 VOICE RAG: API response status:", response.status);
-  
-      if (!response.ok) {
-        throw new Error(`RAG API error: ${response.status}`);
-      }
-  
-      const { answer } = await response.json();
-      console.log("🎤 VOICE RAG: RAG answer:", answer);
-  
-      // Make avatar speak our RAG response
-      if (avatarRef.current) {
-        console.log("🎤 VOICE RAG: Making avatar speak RAG response");
-        avatarRef.current.speak({
-          text: answer,
-          taskType: TaskType.TALK,
-          taskMode: TaskMode.ASYNC,
-        });
-      } else {
-        console.error("🎤 VOICE RAG: Avatar ref is null");
-      }
-    } catch (error) {
-      console.error("🎤 VOICE RAG: Error in RAG processing:", error);
-      
-      // Fallback: let HeyGen handle it
-      if (avatarRef.current) {
-        console.log("🎤 VOICE RAG: Using fallback response");
-        avatarRef.current.speak({
-          text: "I'm sorry, I encountered an error while processing your question. Let me try to answer from my general knowledge.",
-          taskType: TaskType.TALK,
-          taskMode: TaskMode.ASYNC,
-        });
-      }
-    } finally {
-      // Reset the flag after processing
-      setTimeout(() => {
-        isProcessingRAG.current = false;
-      }, 2000); // Wait 2 seconds before allowing next RAG call
-    }
-  }, [avatarRef]);
 
   const start = useCallback(
     async (config: StartAvatarRequest, token?: string) => {
@@ -202,10 +121,7 @@ export const useStreamingAvatarSession = () => {
         StreamingEvents.AVATAR_TALKING_MESSAGE,
         handleStreamingTalkingMessage,
       );
-      
-      // Add our custom RAG handler
-      avatarRef.current.on(StreamingEvents.USER_END_MESSAGE, handleUserEndMessage);
-      
+      avatarRef.current.on(StreamingEvents.USER_END_MESSAGE, handleEndMessage);
       avatarRef.current.on(
         StreamingEvents.AVATAR_END_MESSAGE,
         handleEndMessage,
@@ -228,7 +144,6 @@ export const useStreamingAvatarSession = () => {
       handleStreamingTalkingMessage,
       handleEndMessage,
       setIsAvatarTalking,
-      handleUserEndMessage,
     ],
   );
 
