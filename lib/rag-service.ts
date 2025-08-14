@@ -92,7 +92,7 @@ Alerts: ${client.alerts.join(', ')}`;
       const confidence = docs[0].score ? Math.round(docs[0].score * 100) : 50;
       const context = docs.map(doc => doc.pageContent).join('\n\n');
       
-      const prompt = `You are Max, an AI wealth management assistant. Answer the following question based on the provided context. Be professional, helpful, and proactive. If the context doesn't contain the answer, say you'll need to consult with a human advisor.
+      const prompt = `You are Max, an AI wealth management assistant. Answer the following question based on the provided context. Be professional, helpful, and proactive. Always introduce yourself as Max when appropriate. If the context doesn't contain the answer, say you'll need to consult with a human advisor.
 
 Context:
 ${context}

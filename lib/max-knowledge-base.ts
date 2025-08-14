@@ -120,7 +120,7 @@ export const MAX_KNOWLEDGE_BASE = [
     }
   ];
   
-  export const MAX_GREETING = "Good morning! I'm Max, your AI assistant for wealth management operations. I can help you with client onboarding, portfolio management, compliance monitoring, and operational tasks. How can I assist you today?";
+  export const MAX_GREETING = "Hello! I'm Max, your AI wealth management assistant. I can help you with client onboarding, portfolio management, compliance monitoring, and operational tasks. How can I assist you today?";
   
   export const MAX_PERSONALITY = {
     name: "Max",

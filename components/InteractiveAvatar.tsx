@@ -12,8 +12,8 @@ import { useMemoizedFn, useUnmount } from "ahooks";
 
 import { Button } from "./Button";
 import { AvatarConfig } from "./AvatarConfig";
-import { AvatarVideo } from "./AvatarSession/AvatarVideo";
-import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
+import { CustomAvatar } from "./CustomAvatar";
+import { useCustomAvatarSession, CustomAvatarState } from "./logic/useCustomAvatarSession";
 import { AvatarControls } from "./AvatarSession/AvatarControls";
 import { useVoiceChat } from "./logic/useVoiceChat";
 import { StreamingAvatarProvider, StreamingAvatarSessionState } from "./logic";
@@ -23,14 +23,13 @@ import { DocumentUpload } from "./DocumentUpload";
 
 import { AVATARS } from "@/app/lib/constants";
 
-// Use a guaranteed valid avatar ID
 const DEFAULT_CONFIG: StartAvatarRequest = {
   quality: AvatarQuality.Low,
-  avatarName: "Ann_Therapist_public", // Use a known working avatar
+  avatarName: "Max", // Changed to Max
   knowledgeId: undefined,
   voice: {
-    rate: 1.0, // Reduced from 1.5 to be safer
-    emotion: VoiceEmotion.NEUTRAL, // Changed from EXCITED to NEUTRAL
+    rate: 1.0,
+    emotion: VoiceEmotion.NEUTRAL,
     model: ElevenLabsModel.eleven_flash_v2_5,
   },
   language: "en",
@@ -41,119 +40,74 @@ const DEFAULT_CONFIG: StartAvatarRequest = {
 };
 
 function InteractiveAvatar() {
-  const { initAvatar, startAvatar, stopAvatar, sessionState, stream } =
-    useStreamingAvatarSession();
+  const { avatarState, isPlaying, startSession, stopSession, speak } = useCustomAvatarSession();
   const { startVoiceChat } = useVoiceChat();
 
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
-
-  const mediaStream = useRef<HTMLVideoElement>(null);
-
-  async function fetchAccessToken() {
-    try {
-      const response = await fetch("/api/get-access-token", {
-        method: "POST",
-      });
-      const token = await response.text();
-
-      console.log("Access Token:", token);
-
-      return token;
-    } catch (error) {
-      console.error("Error fetching access token:", error);
-      throw error;
-    }
-  }
+  const [useCustomAvatar, setUseCustomAvatar] = useState(true);
 
   const startSessionV2 = useMemoizedFn(async (isVoiceChat: boolean) => {
     try {
-      console.log("Starting session with config:", config);
-      
-      const newToken = await fetchAccessToken();
-      const avatar = initAvatar(newToken);
-
-      avatar.on(StreamingEvents.AVATAR_START_TALKING, (e) => {
-        console.log("Avatar started talking", e);
-      });
-      avatar.on(StreamingEvents.AVATAR_STOP_TALKING, (e) => {
-        console.log("Avatar stopped talking", e);
-      });
-      avatar.on(StreamingEvents.STREAM_DISCONNECTED, () => {
-        console.log("Stream disconnected");
-      });
-      avatar.on(StreamingEvents.STREAM_READY, (event) => {
-        console.log(">>>>> Stream ready:", event.detail);
-      });
-      avatar.on(StreamingEvents.USER_START, (event) => {
-        console.log(">>>>> User started talking:", event);
-      });
-      avatar.on(StreamingEvents.USER_STOP, (event) => {
-        console.log(">>>>> User stopped talking:", event);
-      });
-      avatar.on(StreamingEvents.USER_END_MESSAGE, (event) => {
-        console.log(">>>>> User end message:", event);
-      });
-      avatar.on(StreamingEvents.USER_TALKING_MESSAGE, (event) => {
-        console.log(">>>>> User talking message:", event);
-      });
-      avatar.on(StreamingEvents.AVATAR_TALKING_MESSAGE, (event) => {
-        console.log(">>>>> Avatar talking message:", event);
-      });
-      avatar.on(StreamingEvents.AVATAR_END_MESSAGE, (event) => {
-        console.log(">>>>> Avatar end message:", event);
-      });
-
-      await startAvatar(config);
+      console.log("Starting Max avatar session");
+      startSession();
 
       if (isVoiceChat) {
         await startVoiceChat();
       }
     } catch (error) {
-      console.error("Error starting avatar session:", error);
-      console.error("Error details:", error);
+      console.error("Error starting Max session:", error);
     }
   });
 
   useUnmount(() => {
-    stopAvatar();
+    stopSession();
   });
-
-  useEffect(() => {
-    if (stream && mediaStream.current) {
-      mediaStream.current.srcObject = stream;
-      mediaStream.current.onloadedmetadata = () => {
-        mediaStream.current!.play();
-      };
-    }
-  }, [mediaStream, stream]);
 
   return (
     <div className="w-full flex flex-col gap-4">
       <div className="flex flex-col rounded-xl bg-zinc-900 overflow-hidden">
         <div className={`relative overflow-hidden flex flex-col items-center justify-center ${
-          sessionState !== StreamingAvatarSessionState.INACTIVE 
+          avatarState !== CustomAvatarState.INACTIVE 
             ? "w-80 h-60 mx-auto my-4 border border-zinc-700 rounded-lg" 
             : "w-full aspect-video"
         }`}>
-          {sessionState !== StreamingAvatarSessionState.INACTIVE ? (
-            <AvatarVideo ref={mediaStream} />
+          {avatarState !== CustomAvatarState.INACTIVE ? (
+            <CustomAvatar 
+              isPlaying={isPlaying}
+              onVideoEnd={() => {
+                setIsPlaying(false);
+              }}
+            />
           ) : (
             <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto p-6">
+              <div className="text-center mb-4">
+                <h1 className="text-2xl font-bold text-white mb-2">Max</h1>
+                <p className="text-zinc-400">AI Wealth Management Assistant</p>
+              </div>
+              <div className="flex items-center gap-4 mb-4">
+                <label className="text-white text-sm">Use Custom Avatar:</label>
+                <input
+                  type="checkbox"
+                  checked={useCustomAvatar}
+                  onChange={(e) => setUseCustomAvatar(e.target.checked)}
+                  className="w-4 h-4"
+                />
+              </div>
               <AvatarConfig config={config} onConfigChange={setConfig} />
               <DocumentUpload />
             </div>
           )}
         </div>
         <div className="flex flex-col gap-3 items-center justify-center p-4 border-t border-zinc-700 w-full">
-          {sessionState === StreamingAvatarSessionState.CONNECTED ? (
+          {avatarState === CustomAvatarState.CONNECTED || avatarState === CustomAvatarState.SPEAKING ? (
             <AvatarControls />
-          ) : sessionState === StreamingAvatarSessionState.INACTIVE ? (
+          ) : avatarState === CustomAvatarState.INACTIVE ? (
             <div className="flex flex-row gap-4">
               <Button onClick={() => startSessionV2(true)}>
-                Start Voice Chat
+                Start Voice Chat with Max
               </Button>
               <Button onClick={() => startSessionV2(false)}>
-                Start Text Chat
+                Start Text Chat with Max
               </Button>
             </div>
           ) : (
@@ -161,7 +115,7 @@ function InteractiveAvatar() {
           )}
         </div>
       </div>
-      {sessionState === StreamingAvatarSessionState.CONNECTED && (
+      {(avatarState === CustomAvatarState.CONNECTED || avatarState === CustomAvatarState.SPEAKING) && (
         <MessageHistory />
       )}
     </div>

@@ -1,58 +1,33 @@
-import { useCallback } from "react";
-
-import { useStreamingAvatarContext } from "./context";
+import { useCallback, useState } from "react";
+import { useCustomAvatarSession } from "./useCustomAvatarSession";
 
 export const useVoiceChat = () => {
-  const {
-    avatarRef,
-    isMuted,
-    setIsMuted,
-    isVoiceChatActive,
-    setIsVoiceChatActive,
-    isVoiceChatLoading,
-    setIsVoiceChatLoading,
-  } = useStreamingAvatarContext();
+  const [isVoiceChatLoading, setIsVoiceChatLoading] = useState(false);
+  const [isVoiceChatActive, setIsVoiceChatActive] = useState(false);
+  const { speak } = useCustomAvatarSession();
 
-  const startVoiceChat = useCallback(
-    async (isInputAudioMuted?: boolean) => {
-      if (!avatarRef.current) return;
-      setIsVoiceChatLoading(true);
-      await avatarRef.current?.startVoiceChat({
-        isInputAudioMuted,
-      });
-      setIsVoiceChatLoading(false);
+  const startVoiceChat = useCallback(async () => {
+    setIsVoiceChatLoading(true);
+    try {
+      // Initialize voice chat (you can add actual voice recognition here)
       setIsVoiceChatActive(true);
-      setIsMuted(!!isInputAudioMuted);
-    },
-    [avatarRef, setIsMuted, setIsVoiceChatActive, setIsVoiceChatLoading],
-  );
+      console.log("Voice chat started with Max");
+    } catch (error) {
+      console.error("Error starting voice chat:", error);
+    } finally {
+      setIsVoiceChatLoading(false);
+    }
+  }, []);
 
   const stopVoiceChat = useCallback(() => {
-    if (!avatarRef.current) return;
-    avatarRef.current?.closeVoiceChat();
     setIsVoiceChatActive(false);
-    setIsMuted(true);
-  }, [avatarRef, setIsMuted, setIsVoiceChatActive]);
-
-  const muteInputAudio = useCallback(() => {
-    if (!avatarRef.current) return;
-    avatarRef.current?.muteInputAudio();
-    setIsMuted(true);
-  }, [avatarRef, setIsMuted]);
-
-  const unmuteInputAudio = useCallback(() => {
-    if (!avatarRef.current) return;
-    avatarRef.current?.unmuteInputAudio();
-    setIsMuted(false);
-  }, [avatarRef, setIsMuted]);
+    console.log("Voice chat stopped");
+  }, []);
 
   return {
+    isVoiceChatLoading,
+    isVoiceChatActive,
     startVoiceChat,
     stopVoiceChat,
-    muteInputAudio,
-    unmuteInputAudio,
-    isMuted,
-    isVoiceChatActive,
-    isVoiceChatLoading,
   };
 };
