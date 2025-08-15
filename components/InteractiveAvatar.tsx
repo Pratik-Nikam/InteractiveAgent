@@ -16,7 +16,7 @@ import { AvatarVideo } from "./AvatarSession/AvatarVideo";
 import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
 import { AvatarControls } from "./AvatarSession/AvatarControls";
 import { useVoiceChat } from "./logic/useVoiceChat";
-import { StreamingAvatarProvider, StreamingAvatarSessionState } from "./logic";
+import { StreamingAvatarSessionState, StreamingAvatarProvider } from "./logic";
 import { LoadingIcon } from "./Icons";
 import { MessageHistory } from "./AvatarSession/MessageHistory";
 
@@ -54,7 +54,7 @@ function InteractiveAvatar() {
       });
       const token = await response.text();
 
-      console.log("Access Token:", token); // Log the token to verify
+      console.log("Access Token:", token);
 
       return token;
     } catch (error) {
@@ -125,11 +125,17 @@ function InteractiveAvatar() {
   return (
     <div className="w-full flex flex-col gap-4">
       <div className="flex flex-col rounded-xl bg-zinc-900 overflow-hidden">
-        <div className="relative w-full aspect-video overflow-hidden flex flex-col items-center justify-center">
+        <div className={`relative overflow-hidden flex flex-col items-center justify-center ${
+          sessionState !== StreamingAvatarSessionState.INACTIVE 
+            ? "w-80 h-96 mx-auto my-4 border border-zinc-700 rounded-lg" // iPhone-like size: 320px × 384px
+            : "w-full aspect-video"
+        }`}>
           {sessionState !== StreamingAvatarSessionState.INACTIVE ? (
             <AvatarVideo ref={mediaStream} />
           ) : (
-            <AvatarConfig config={config} onConfigChange={setConfig} />
+            <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto p-6">
+              <AvatarConfig config={config} onConfigChange={setConfig} />
+            </div>
           )}
         </div>
         <div className="flex flex-col gap-3 items-center justify-center p-4 border-t border-zinc-700 w-full">
