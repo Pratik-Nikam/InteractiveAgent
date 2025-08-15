@@ -37,6 +37,7 @@ export const AvatarVideo = forwardRef<HTMLVideoElement>(({}, ref) => {
           height: "100%",
           objectFit: "cover", // Changed from "contain" to "cover" to fill the iPhone screen
           borderRadius: "12px", // iPhone-like rounded corners
+          backgroundColor: "black",
         }}
       >
         <track kind="captions" />

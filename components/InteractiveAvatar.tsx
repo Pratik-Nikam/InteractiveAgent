@@ -24,7 +24,7 @@ import { AVATARS } from "@/app/lib/constants";
 
 const DEFAULT_CONFIG: StartAvatarRequest = {
   quality: AvatarQuality.Low,
-  avatarName: AVATARS[0].avatar_id,
+  avatarName: "Graham_ProfessionalLook_public",
   knowledgeId: "07df2c9d689742e3a56735ab6e491984",
   voice: {
     rate: 1.5,
@@ -127,7 +127,7 @@ function InteractiveAvatar() {
       <div className="flex flex-col rounded-xl bg-zinc-900 overflow-hidden">
         <div className={`relative overflow-hidden flex flex-col items-center justify-center ${
           sessionState !== StreamingAvatarSessionState.INACTIVE 
-            ? "w-80 h-96 mx-auto my-4 border border-zinc-700 rounded-lg" // iPhone-like size: 320px × 384px
+            ? "w-80 h-96 mx-auto my-4 border border-zinc-700 rounded-lg bg-black" // Added bg-black
             : "w-full aspect-video"
         }`}>
           {sessionState !== StreamingAvatarSessionState.INACTIVE ? (

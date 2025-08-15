@@ -14,7 +14,7 @@ export default function NavBar() {
           </Link>
           <div className="bg-gradient-to-br from-sky-300 to-indigo-500 bg-clip-text">
             <p className="text-xl font-semibold text-transparent">
-              Wealth-Manager
+              Max, Interactive Wealth Manager
             </p>
           </div>
         </div>
