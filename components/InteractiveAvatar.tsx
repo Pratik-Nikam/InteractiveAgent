@@ -127,7 +127,7 @@ function InteractiveAvatar() {
       <div className="flex flex-col rounded-xl bg-zinc-900 overflow-hidden">
         <div className={`relative overflow-hidden flex flex-col items-center justify-center ${
           sessionState !== StreamingAvatarSessionState.INACTIVE 
-            ? "w-80 h-96 mx-auto my-4 border border-zinc-700 rounded-lg bg-black" // Added bg-black
+            ? "w-80 h-96 mx-auto my-4 border border-zinc-700 rounded-lg" // Original iPhone-like size
             : "w-full aspect-video"
         }`}>
           {sessionState !== StreamingAvatarSessionState.INACTIVE ? (
