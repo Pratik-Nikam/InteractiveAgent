@@ -53,7 +53,9 @@ export const AvatarConfig: React.FC<AvatarConfigProps> = ({
   }, [config.avatarName]);
 
   return (
-    <div className="relative flex flex-col gap-4 w-[550px] py-8 max-h-full overflow-y-auto px-4">
+    // <div className="relative flex flex-col gap-4 w-[550px] py-8 max-h-full overflow-y-auto px-4">
+    <div className="relative flex flex-col gap-4 w-full max-w-md py-8 max-h-full overflow-y-auto px-4">
+
       <Field label="Language">
         <Select
           isSelected={(option) => option.value === config.language}
@@ -89,7 +91,7 @@ export const AvatarConfig: React.FC<AvatarConfigProps> = ({
           <h1 className="text-zinc-100 w-full text-center mt-5">
             Voice Settings
           </h1>
-          <Field label="Custom Voice ID">
+          {/* <Field label="Custom Voice ID">
             <Input
               placeholder="Enter custom voice ID"
               value={config.voice?.voiceId}
@@ -97,7 +99,7 @@ export const AvatarConfig: React.FC<AvatarConfigProps> = ({
                 onChange("voice", { ...config.voice, voiceId: value })
               }
             />
-          </Field>
+          </Field> */}
           <Field label="Emotion">
             <Select
               isSelected={(option) => option === config.voice?.emotion}

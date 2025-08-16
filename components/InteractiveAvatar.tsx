@@ -24,7 +24,8 @@ import { AVATARS } from "@/app/lib/constants";
 
 const DEFAULT_CONFIG: StartAvatarRequest = {
   quality: AvatarQuality.Low,
-  avatarName: "Graham_ProfessionalLook_public",
+  // avatarName: "Graham_ProfessionalLook_public",
+  avatarName: "Ann_Therapist_public",
   knowledgeId: "07df2c9d689742e3a56735ab6e491984",
   voice: {
     rate: 1.5,
@@ -125,15 +126,29 @@ function InteractiveAvatar() {
   return (
     <div className="w-full flex flex-col gap-4">
       <div className="flex flex-col rounded-xl bg-zinc-900 overflow-hidden">
-        <div className={`relative overflow-hidden flex flex-col items-center justify-center ${
+        {/* <div className={`relative overflow-visible flex flex-col items-center justify-center ${
           sessionState !== StreamingAvatarSessionState.INACTIVE 
-            ? "w-80 h-96 mx-auto my-4 border border-zinc-700 rounded-lg" // Original iPhone-like size
+            ? "w-80 mx-auto my-4 border border-zinc-700 rounded-lg" // allow video to size inside container
             : "w-full aspect-video"
         }`}>
           {sessionState !== StreamingAvatarSessionState.INACTIVE ? (
             <AvatarVideo ref={mediaStream} />
           ) : (
             <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto p-6">
+              <AvatarConfig config={config} onConfigChange={setConfig} />
+            </div>
+          )}
+        </div> */}
+
+        <div className="relative overflow-visible flex flex-col items-center justify-center w-full max-w-md mx-auto my-4 border border-zinc-700 rounded-lg">
+          {sessionState !== StreamingAvatarSessionState.INACTIVE ? (
+            // keep video in a consistent portrait/iPhone-like box
+            <div className="w-full h-[70vh] max-h-[80vh] sm:h-[60vh] sm:max-h-[70vh]">
+              <AvatarVideo ref={mediaStream} />
+            </div>
+          ) : (
+            // config panel scrolls inside the same sized container so fields are not cut
+            <div className="flex flex-col gap-6 w-full max-h-[70vh] overflow-auto p-6">
               <AvatarConfig config={config} onConfigChange={setConfig} />
             </div>
           )}
