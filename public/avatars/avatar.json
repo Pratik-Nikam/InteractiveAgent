@@ -1,0 +1,13 @@
+{
+    "id": "your-custom-avatar",
+    "name": "Your Custom Avatar",
+    "description": "A custom avatar with lip sync",
+    "image": "/avatars/your-avatar/avatar.png",
+    "video": "/avatars/your-avatar/avatar.mp4",
+    "type": "custom",
+    "lipSync": true,
+    "dimensions": {
+      "width": 640,
+      "height": 480
+    }
+  }
