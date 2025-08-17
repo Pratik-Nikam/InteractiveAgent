@@ -16,13 +16,11 @@ import { Button } from "./Button";
 import { AvatarConfig } from "./AvatarConfig";
 import { AvatarVideo } from "./AvatarSession/AvatarVideo";
 import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
-import { AvatarControls } from "./AvatarSession/AvatarControls";
 import { useVoiceChat } from "./logic/useVoiceChat";
-import { StreamingAvatarProvider, StreamingAvatarSessionState } from "./logic";
+import { StreamingAvatarProvider, StreamingAvatarSessionState, MessageSender } from "./logic";
 import { LoadingIcon } from "./Icons";
-import { MessageHistory } from "./AvatarSession/MessageHistory";
-import { TextInput } from "./AvatarSession/TextInput";
 import { AudioInput } from "./AvatarSession/AudioInput";
+import { MessageHistory } from "./AvatarSession/MessageHistory";
 import { knowledgeBaseService } from "@/services/knowledgeBaseService";
 
 import { AVATARS } from "@/app/lib/constants";
@@ -49,12 +47,9 @@ function InteractiveAvatar() {
   const { startVoiceChat } = useVoiceChat();
 
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
-  const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [hasGreeted, setHasGreeted] = useState(false);
   const [isVoiceChatMode, setIsVoiceChatMode] = useState(false);
   
-  // Use ref instead of state for avatar instance to avoid timing issues
   const avatarInstanceRef = useRef<any>(null);
   const mediaStream = useRef<HTMLVideoElement>(null);
 
@@ -84,7 +79,7 @@ function InteractiveAvatar() {
         },
         body: JSON.stringify({
           message,
-          conversationHistory: messages,
+          conversationHistory: [], // We'll use the context's message history
         }),
       });
 
@@ -94,7 +89,6 @@ function InteractiveAvatar() {
       }
 
       const data = await response.json();
-      setMessages(data.conversationHistory);
       console.log('LLM response:', data.response);
 
       return data.response;
@@ -106,59 +100,53 @@ function InteractiveAvatar() {
     }
   };
 
-  // FIXED: Use the correct HeyGen API method
-  const sendTextToAvatar = async (text: string) => {
+  // Function to make avatar speak
+  const makeAvatarSpeak = async (text: string) => {
     if (!avatarInstanceRef.current) {
       console.error('Avatar instance not available');
       return;
     }
 
     try {
-      console.log('Sending text to avatar for speech:', text);
+      console.log('Making avatar speak:', text);
       
-      // Use the correct HeyGen speak method
       await avatarInstanceRef.current.speak({
         text: text,
         taskType: TaskType.TALK,
         taskMode: TaskMode.SYNC,
       });
-      console.log('Text sent to avatar successfully');
+      console.log('Avatar spoke successfully');
       
     } catch (error) {
-      console.error('Error sending text to avatar:', error);
+      console.error('Error making avatar speak:', error);
     }
   };
 
+  // Use knowledge base for greeting
   const sendGreeting = async () => {
     try {
-      console.log('Sending greeting...');
+      console.log('Sending greeting from knowledge base...');
       const greeting = knowledgeBaseService.getGreeting();
-      console.log('Greeting message:', greeting);
+      console.log('Greeting from knowledge base:', greeting);
       
-      // Add greeting to messages immediately
-      setMessages(prev => [...prev, { role: 'assistant', content: greeting }]);
-      
-      // Send greeting to LLM to get a response
-      const response = await sendMessageToLLM(greeting);
-      console.log('Greeting response from LLM:', response);
-      
-      // Send the response to avatar for speech
-      await sendTextToAvatar(response);
+      // Make avatar speak the greeting from knowledge base
+      await makeAvatarSpeak(greeting);
       
     } catch (error) {
       console.error('Error sending greeting:', error);
     }
   };
 
-  const startSessionV2 = useMemoizedFn(async (isVoiceChat: boolean) => {
+  const startSession = useMemoizedFn(async (isVoiceChat: boolean) => {
     try {
+      console.log('Starting session...');
       setIsVoiceChatMode(isVoiceChat);
-      setHasGreeted(false);
       
       const newToken = await fetchAccessToken();
       const avatar = initAvatar(newToken);
-      avatarInstanceRef.current = avatar; // Store avatar instance in ref
+      avatarInstanceRef.current = avatar;
 
+      // Set up event listeners
       avatar.on(StreamingEvents.AVATAR_START_TALKING, (e) => {
         console.log("Avatar started talking", e);
       });
@@ -169,32 +157,13 @@ function InteractiveAvatar() {
         console.log("Stream disconnected");
       });
       avatar.on(StreamingEvents.STREAM_READY, (event) => {
-        console.log(">>>>> Stream ready:", event.detail);
+        console.log("Stream ready:", event.detail);
+        
         // Send greeting immediately when stream is ready
-        if (isVoiceChat && !hasGreeted) {
-          setTimeout(() => {
-            sendGreeting();
-            setHasGreeted(true);
-          }, 2000); // Increased delay to ensure avatar is fully ready
+        if (isVoiceChat) {
+          console.log('Sending immediate greeting from knowledge base...');
+          sendGreeting();
         }
-      });
-      avatar.on(StreamingEvents.USER_START, (event) => {
-        console.log(">>>>> User started talking:", event);
-      });
-      avatar.on(StreamingEvents.USER_STOP, (event) => {
-        console.log(">>>>> User stopped talking:", event);
-      });
-      avatar.on(StreamingEvents.USER_END_MESSAGE, (event) => {
-        console.log(">>>>> User end message:", event);
-      });
-      avatar.on(StreamingEvents.USER_TALKING_MESSAGE, (event) => {
-        console.log(">>>>> User talking message:", event);
-      });
-      avatar.on(StreamingEvents.AVATAR_TALKING_MESSAGE, (event) => {
-        console.log(">>>>> Avatar talking message:", event);
-      });
-      avatar.on(StreamingEvents.AVATAR_END_MESSAGE, (event) => {
-        console.log(">>>>> Avatar end message:", event);
       });
 
       await startAvatar(config);
@@ -225,17 +194,11 @@ function InteractiveAvatar() {
     if (!message.trim() || isProcessing) return;
     
     try {
-      // Add user message to UI
-      setMessages(prev => [...prev, { role: 'user', content: message }]);
-      
       // Send to LLM and get response
       const response = await sendMessageToLLM(message);
       
-      // Add LLM response to UI
-      setMessages(prev => [...prev, { role: 'assistant', content: response }]);
-      
-      // Send the response to avatar for speech synthesis
-      await sendTextToAvatar(response);
+      // Make avatar speak the response
+      await makeAvatarSpeak(response);
       
     } catch (error) {
       console.error('Error sending message:', error);
@@ -244,8 +207,6 @@ function InteractiveAvatar() {
 
   const handleStopSession = () => {
     stopAvatar();
-    setMessages([]);
-    setHasGreeted(false);
     setIsVoiceChatMode(false);
     avatarInstanceRef.current = null;
   };
@@ -303,19 +264,13 @@ function InteractiveAvatar() {
                   Processing message...
                 </div>
               )}
-              {isVoiceChatMode && !hasGreeted && (
-                <div className="text-yellow-400 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-                  Preparing greeting...
-                </div>
-              )}
             </div>
           ) : sessionState === StreamingAvatarSessionState.INACTIVE ? (
             <div className="flex flex-row gap-4">
-              <Button onClick={() => startSessionV2(true)}>
+              <Button onClick={() => startSession(true)}>
                 Start Voice Chat
               </Button>
-              <Button onClick={() => startSessionV2(false)}>
+              <Button onClick={() => startSession(false)}>
                 Start Text Chat
               </Button>
             </div>
@@ -325,26 +280,8 @@ function InteractiveAvatar() {
         </div>
       </div>
 
-      {/* Message History */}
-      {messages.length > 0 && (
-        <div className="bg-zinc-900 rounded-xl p-4 max-h-64 overflow-y-auto">
-          <h3 className="text-white font-semibold mb-2">Conversation History</h3>
-          <div className="space-y-2">
-            {messages.map((msg, index) => (
-              <div
-                key={index}
-                className={`p-2 rounded ${
-                  msg.role === 'user' 
-                    ? 'bg-blue-600 text-white ml-4' 
-                    : 'bg-green-600 text-white mr-4'
-                }`}
-              >
-                <strong>{msg.role === 'user' ? 'You' : 'Max (Wealth Manager)'}:</strong> {msg.content}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Original Message History Component */}
+      <MessageHistory />
     </div>
   );
 }
