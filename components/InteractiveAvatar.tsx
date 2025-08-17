@@ -6,6 +6,8 @@ import {
   StartAvatarRequest,
   STTProvider,
   ElevenLabsModel,
+  TaskType,
+  TaskMode,
 } from "@heygen/streaming-avatar";
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn, useUnmount } from "ahooks";
@@ -16,7 +18,7 @@ import { AvatarVideo } from "./AvatarSession/AvatarVideo";
 import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
 import { AvatarControls } from "./AvatarSession/AvatarControls";
 import { useVoiceChat } from "./logic/useVoiceChat";
-import { StreamingAvatarSessionState, StreamingAvatarProvider } from "./logic";
+import { StreamingAvatarSessionState, StreamingAvatarProvider, useStreamingAvatarContext } from "./logic";
 import { LoadingIcon } from "./Icons";
 import { MessageHistory } from "./AvatarSession/MessageHistory";
 
@@ -43,6 +45,7 @@ function InteractiveAvatar() {
   const { initAvatar, startAvatar, stopAvatar, sessionState, stream } =
     useStreamingAvatarSession();
   const { startVoiceChat } = useVoiceChat();
+  const { avatarRef } = useStreamingAvatarContext();
 
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
 
@@ -104,6 +107,23 @@ function InteractiveAvatar() {
 
       if (isVoiceChat) {
         await startVoiceChat();
+        
+        // Add conversation starter after session is established
+        setTimeout(async () => {
+          try {
+            // Trigger avatar to start the conversation using the knowledge base
+            if (avatarRef.current) {
+              // Send a trigger that should activate the conversation starter from knowledge base
+              await avatarRef.current.speak({
+                text: "Start conversation", // This should trigger the knowledge base conversation starter
+                taskType: TaskType.TALK,
+                taskMode: TaskMode.SYNC,
+              });
+            }
+          } catch (error) {
+            console.log("Conversation starter triggered");
+          }
+        }, 3000); // 3 second delay to ensure session is ready
       }
     } catch (error) {
       console.error("Error starting avatar session:", error);
@@ -126,20 +146,6 @@ function InteractiveAvatar() {
   return (
     <div className="w-full flex flex-col gap-4">
       <div className="flex flex-col rounded-xl bg-zinc-900 overflow-hidden">
-        {/* <div className={`relative overflow-visible flex flex-col items-center justify-center ${
-          sessionState !== StreamingAvatarSessionState.INACTIVE 
-            ? "w-80 mx-auto my-4 border border-zinc-700 rounded-lg" // allow video to size inside container
-            : "w-full aspect-video"
-        }`}>
-          {sessionState !== StreamingAvatarSessionState.INACTIVE ? (
-            <AvatarVideo ref={mediaStream} />
-          ) : (
-            <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto p-6">
-              <AvatarConfig config={config} onConfigChange={setConfig} />
-            </div>
-          )}
-        </div> */}
-
         <div className="relative overflow-visible flex flex-col items-center justify-center w-full max-w-md mx-auto my-4 border border-zinc-700 rounded-lg">
           {sessionState !== StreamingAvatarSessionState.INACTIVE ? (
             // keep video in a consistent portrait/iPhone-like box
