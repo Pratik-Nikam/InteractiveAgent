@@ -44,28 +44,29 @@ export class KnowledgeBaseService {
     this.knowledgeBase = {
       persona: {
         name: "Max",
-        role: "HeyGen AI Wealth Management Operations Assistant",
+        role: "Wealth Management Operations Assistant",
         traits: ["Proactive and detail-oriented", "Supportive with friendly but professional tone", "Knowledgeable about wealth management operations", "Efficient problem-solver"]
       },
-      introduction: "Good morning, Sarah. Several onboarding tasks are close to or past SLA. Want me to go over them and suggest the quickest way to resolve?",
+      introduction: "Good morning, Sarah. I see 3 client onboardings have stalled at ID verification for 48+ hours. Want me to send e‑ID reminders, prefill the missing fields, and notify their advisors so we don't breach SLA?",
       conversationStarters: [
-        "Good morning, Sarah. Several onboarding tasks are close to or past SLA. Want me to go over them and suggest the quickest way to resolve?",
+        "Good morning, Sarah. I see 3 client onboardings have stalled at ID verification for 48+ hours. Want me to send e‑ID reminders, prefill the missing fields, and notify their advisors so we don't breach SLA?",
         "Hi Sarah, I see three client onboardings have stalled past ID verification SLA. Want me to share details?",
         "Morning, Sarah. Michael Brown's funding hasn't cleared in 72 hours. Want me to follow up?"
       ],
       rules: [
-        "Always be proactive and detail-oriented",
+        "Always be proactive and detail-oriented about wealth management operations",
         "Maintain a friendly but professional tone",
-        "Help track onboarding progress, compliance steps, account servicing, funding, and advisor follow-ups",
+        "Focus on client onboarding, compliance steps, account servicing, funding, and advisor follow-ups",
         "Provide clear status updates and explain pending steps",
         "Suggest the fastest way to resolve issues",
-        "Max 3 sentences per response, <30 words each",
-        "Always offer next steps",
-        "Avoid jargon unless the user is familiar with it",
-        "Refuse off-topic or NSFW requests politely",
-        "For unclear speech: 'Sorry, didn't catch that. Could you repeat?'"
+        "Max 2-3 sentences per response, keep responses concise",
+        "Always offer specific next steps or actions",
+        "Use wealth management terminology appropriately",
+        "Refuse off-topic requests politely and redirect to wealth management topics",
+        "For unclear speech: 'Sorry, didn't catch that. Could you repeat?'",
+        "Stay focused on wealth management operations and client onboarding tasks"
       ],
-      promptTemplate: "You are {persona}. Your role is to be {role}. Your personality traits include: {traits}. Rules to follow: {rules}. Wealth Management Context: {context}. Current conversation context: {history}. User: {message}. Assistant:",
+      promptTemplate: "You are {persona}, a {role}. Your personality traits include: {traits}. Rules to follow: {rules}. Wealth Management Context: {context}. Current conversation context: {history}. User: {message}. Assistant:",
       wealthManagementContext: {
         keyProcesses: {
           clientOnboarding: {
@@ -195,7 +196,7 @@ export class KnowledgeBaseService {
         ]
       },
       conversationFlow: {
-        greeting: "Good morning, Sarah. Several onboarding tasks are close to or past SLA. Want me to go over them and suggest the quickest way to resolve?",
+        greeting: "Good morning, Sarah. I see 3 client onboardings have stalled at ID verification for 48+ hours. Want me to send e‑ID reminders, prefill the missing fields, and notify their advisors so we don't breach SLA?",
         farewell: "Is there anything else you'd like me to check or escalate?",
         clarification: "Sorry, didn't catch that. Could you repeat?",
         confirmation: "Let me make sure I understand correctly...",
@@ -209,7 +210,13 @@ export class KnowledgeBaseService {
     return this.knowledgeBase;
   }
 
-  async generatePrompt(message: string, conversationHistory: any[] = []): Promise<string> {
+  // Get proactive greeting with specific issues
+  getProactiveGreeting(): string {
+    return "Good morning, Sarah. I see 3 client onboardings have stalled at ID verification for 48+ hours. Want me to send e‑ID reminders, prefill the missing fields, and notify their advisors so we don't breach SLA?";
+  }
+
+  // NEW: Create intelligent prompt that makes the LLM act as a wealth management assistant
+  async generateIntelligentPrompt(message: string, conversationHistory: any[] = []): Promise<string> {
     const kb = await this.loadKnowledgeBase();
     
     // Build conversation context
@@ -217,33 +224,54 @@ export class KnowledgeBaseService {
       .map((msg: any) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
       .join('\n');
 
-    // Create wealth management context summary
-    const context = `
-      Key Processes: ${JSON.stringify(kb.wealthManagementContext.keyProcesses, null, 2)}
-      Client Dataset: ${JSON.stringify(kb.wealthManagementContext.clientDataset, null, 2)}
-      Sample Flows: ${JSON.stringify(kb.wealthManagementContext.sampleFlows, null, 2)}
-      Intent Triggers: ${JSON.stringify(kb.wealthManagementContext.intentTriggers, null, 2)}
-    `;
+    // Get current issues from knowledge base
+    const stalledClients = this.getStalledOnboardings();
+    const currentIssues = stalledClients.map(client => 
+      `${client.name}: ${client.status} - ${client.pendingStep} (${client.slaHours}h overdue, pending with ${client.responsiblePerson})`
+    ).join('\n');
 
-    // Replace placeholders in prompt template
-    let prompt = kb.promptTemplate
-      .replace('{persona}', kb.persona.name)
-      .replace('{role}', kb.persona.role)
-      .replace('{traits}', kb.persona.traits.join(', '))
-      .replace('{rules}', kb.rules.join('. '))
-      .replace('{context}', context)
-      .replace('{history}', history)
-      .replace('{message}', message);
+    // Create a more intelligent prompt
+    const intelligentPrompt = `You are Max, a Wealth Management Operations Assistant. Your role is to proactively identify and resolve issues in client onboarding processes.
 
-    return prompt;
+CURRENT CLIENT ISSUES:
+${currentIssues}
+
+AVAILABLE ACTIONS:
+- Send e-ID reminders to clients
+- Prefill missing fields in forms
+- Notify advisors about pending items
+- Escalate to compliance team
+- Contact treasury for funding issues
+- Update SLA status
+
+CONVERSATION HISTORY:
+${history}
+
+USER MESSAGE: ${message}
+
+INSTRUCTIONS:
+1. If this is the first message, proactively identify the most critical issues
+2. Always reference specific client names and their specific problems
+3. Offer concrete next steps (e.g., "I'll send e-ID reminders to John Kim and Maria Gomez")
+4. Keep responses concise (2-3 sentences max)
+5. Focus on wealth management operations only
+
+ASSISTANT:`;
+
+    return intelligentPrompt;
+  }
+
+  async generatePrompt(message: string, conversationHistory: any[] = []): Promise<string> {
+    // Use the intelligent prompt instead of the basic one
+    return this.generateIntelligentPrompt(message, conversationHistory);
   }
 
   getIntroduction(): string {
-    return this.knowledgeBase?.introduction || "Good morning, Sarah. Several onboarding tasks are close to or past SLA. Want me to go over them and suggest the quickest way to resolve?";
+    return this.knowledgeBase?.introduction || "Good morning, Sarah. I see 3 client onboardings have stalled at ID verification for 48+ hours. Want me to send e‑ID reminders, prefill the missing fields, and notify their advisors so we don't breach SLA?";
   }
 
   getConversationStarters(): string[] {
-    return this.knowledgeBase?.conversationStarters || ["Good morning, Sarah. Several onboarding tasks are close to or past SLA. Want me to go over them and suggest the quickest way to resolve?"];
+    return this.knowledgeBase?.conversationStarters || ["Good morning, Sarah. I see 3 client onboardings have stalled at ID verification for 48+ hours. Want me to send e‑ID reminders, prefill the missing fields, and notify their advisors so we don't breach SLA?"];
   }
 
   getRandomConversationStarter(): string {
@@ -252,7 +280,7 @@ export class KnowledgeBaseService {
   }
 
   getGreeting(): string {
-    return this.knowledgeBase?.conversationFlow.greeting || this.getIntroduction();
+    return this.getProactiveGreeting();
   }
 
   getClientData(clientName?: string) {
@@ -268,6 +296,17 @@ export class KnowledgeBaseService {
   getStalledOnboardings() {
     const clients = this.getClientData();
     return clients.filter((client: any) => client.slaHours > 24);
+  }
+
+  // NEW: Get specific client issues for better responses
+  getClientIssues(clientName?: string) {
+    if (clientName) {
+      const client = this.getClientData(clientName);
+      if (client) {
+        return `${client.name} has ${client.status} pending - ${client.pendingStep} (${client.slaHours}h overdue, pending with ${client.responsiblePerson})`;
+      }
+    }
+    return null;
   }
 }
 

@@ -18,6 +18,7 @@ import { AvatarVideo } from "./AvatarSession/AvatarVideo";
 import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
 import { useVoiceChat } from "./logic/useVoiceChat";
 import { StreamingAvatarProvider, StreamingAvatarSessionState, MessageSender } from "./logic";
+import { useStreamingAvatarContext } from "./logic/context";
 import { LoadingIcon } from "./Icons";
 import { AudioInput } from "./AvatarSession/AudioInput";
 import { MessageHistory } from "./AvatarSession/MessageHistory";
@@ -45,6 +46,7 @@ function InteractiveAvatar() {
   const { initAvatar, startAvatar, stopAvatar, sessionState, stream } =
     useStreamingAvatarSession();
   const { startVoiceChat } = useVoiceChat();
+  const { messages, handleStreamingTalkingMessage } = useStreamingAvatarContext();
 
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -67,10 +69,21 @@ function InteractiveAvatar() {
     }
   }
 
+  // Convert HeyGen message format to knowledge base format
+  const convertMessagesToKnowledgeBaseFormat = () => {
+    return messages.map(msg => ({
+      role: msg.sender === MessageSender.CLIENT ? 'user' : 'assistant',
+      content: msg.content
+    }));
+  };
+
   const sendMessageToLLM = async (message: string) => {
     try {
       setIsProcessing(true);
       console.log('Sending message to LLM:', message);
+      
+      // Convert current messages to knowledge base format
+      const conversationHistory = convertMessagesToKnowledgeBaseFormat();
       
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -79,7 +92,7 @@ function InteractiveAvatar() {
         },
         body: JSON.stringify({
           message,
-          conversationHistory: [], // We'll use the context's message history
+          conversationHistory,
         }),
       });
 
@@ -122,12 +135,20 @@ function InteractiveAvatar() {
     }
   };
 
-  // Use knowledge base for greeting
+  // Use knowledge base for greeting - FIXED: Don't send to LLM
   const sendGreeting = async () => {
     try {
       console.log('Sending greeting from knowledge base...');
       const greeting = knowledgeBaseService.getGreeting();
       console.log('Greeting from knowledge base:', greeting);
+      
+      // Add greeting to message history as avatar message
+      handleStreamingTalkingMessage({
+        detail: {
+          message: greeting,
+          isComplete: true
+        }
+      });
       
       // Make avatar speak the greeting from knowledge base
       await makeAvatarSpeak(greeting);
