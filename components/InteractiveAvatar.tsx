@@ -28,7 +28,7 @@ const DEFAULT_CONFIG: StartAvatarRequest = {
   quality: AvatarQuality.Low,
   // avatarName: "Graham_ProfessionalLook_public",
   avatarName: "Graham_ProfessionalLook2_public",
-  knowledgeId: "430fa95b3e874f0eb25e839c8499a9e0",
+  knowledgeId: "f64a260378224f9bbbc248608a8dcad5",
   voice: {
     rate: 1.5,
     emotion: VoiceEmotion.EXCITED,
