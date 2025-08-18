@@ -16,11 +16,10 @@ import { Button } from "./Button";
 import { AvatarConfig } from "./AvatarConfig";
 import { AvatarVideo } from "./AvatarSession/AvatarVideo";
 import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
+import { AvatarControls } from "./AvatarSession/AvatarControls";
 import { useVoiceChat } from "./logic/useVoiceChat";
-import { StreamingAvatarProvider, StreamingAvatarSessionState, MessageSender } from "./logic";
-import { useStreamingAvatarContext } from "./logic/context";
+import { StreamingAvatarSessionState, StreamingAvatarProvider, useStreamingAvatarContext } from "./logic";
 import { LoadingIcon } from "./Icons";
-import { AudioInput } from "./AvatarSession/AudioInput";
 import { MessageHistory } from "./AvatarSession/MessageHistory";
 import { knowledgeBaseService } from "@/services/knowledgeBaseService";
 
@@ -28,8 +27,9 @@ import { AVATARS } from "@/app/lib/constants";
 
 const DEFAULT_CONFIG: StartAvatarRequest = {
   quality: AvatarQuality.Low,
-  avatarName: AVATARS[0].avatar_id,
-  knowledgeId: undefined,
+  avatarName: "Graham_ProfessionalLook2_public",
+  // Remove knowledgeId completely to disable HeyGen's knowledge base
+  // knowledgeId: "430fa95b3e874f0eb25e839c8499a9e0",
   voice: {
     rate: 1.5,
     emotion: VoiceEmotion.EXCITED,
@@ -40,19 +40,28 @@ const DEFAULT_CONFIG: StartAvatarRequest = {
   sttSettings: {
     provider: STTProvider.DEEPGRAM,
   },
+  // Add this to disable automatic responses
+  // disableAutoResponse: true, // This might not exist
 };
 
 function InteractiveAvatar() {
   const { initAvatar, startAvatar, stopAvatar, sessionState, stream } =
     useStreamingAvatarSession();
   const { startVoiceChat } = useVoiceChat();
-  const { messages, handleStreamingTalkingMessage } = useStreamingAvatarContext();
+  const { avatarRef, handleStreamingTalkingMessage } = useStreamingAvatarContext();
 
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isVoiceChatMode, setIsVoiceChatMode] = useState(false);
-  
-  const avatarInstanceRef = useRef<any>(null);
+  const [lastResponseSource, setLastResponseSource] = useState<string>('');
+  const [responseInfo, setResponseInfo] = useState<{
+    source: string;
+    model: string;
+    time: number;
+  } | null>(null);
+
+  // Add this state to track if we're using local LLM
+  const [isLocalLLMProcessing, setIsLocalLLMProcessing] = useState(false);
+
   const mediaStream = useRef<HTMLVideoElement>(null);
 
   async function fetchAccessToken() {
@@ -61,7 +70,9 @@ function InteractiveAvatar() {
         method: "POST",
       });
       const token = await response.text();
+
       console.log("Access Token:", token);
+
       return token;
     } catch (error) {
       console.error("Error fetching access token:", error);
@@ -69,21 +80,11 @@ function InteractiveAvatar() {
     }
   }
 
-  // Convert HeyGen message format to knowledge base format
-  const convertMessagesToKnowledgeBaseFormat = () => {
-    return messages.map(msg => ({
-      role: msg.sender === MessageSender.CLIENT ? 'user' : 'assistant',
-      content: msg.content
-    }));
-  };
-
-  const sendMessageToLLM = async (message: string) => {
+  // Function to send message to local LLM
+  const sendMessageToLocalLLM = async (message: string) => {
     try {
       setIsProcessing(true);
-      console.log('Sending message to LLM:', message);
-      
-      // Convert current messages to knowledge base format
-      const conversationHistory = convertMessagesToKnowledgeBaseFormat();
+      console.log('Sending message to local LLM:', message);
       
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -92,7 +93,7 @@ function InteractiveAvatar() {
         },
         body: JSON.stringify({
           message,
-          conversationHistory,
+          conversationHistory: [], // You can add conversation history here if needed
         }),
       });
 
@@ -102,7 +103,14 @@ function InteractiveAvatar() {
       }
 
       const data = await response.json();
-      console.log('LLM response:', data.response);
+      console.log('Local LLM response:', data.response);
+      
+      // Set response info
+      setResponseInfo({
+        source: 'Local LLM',
+        model: data.model || 'unknown',
+        time: data.responseTime || 0
+      });
 
       return data.response;
     } catch (error) {
@@ -115,7 +123,7 @@ function InteractiveAvatar() {
 
   // Function to make avatar speak
   const makeAvatarSpeak = async (text: string) => {
-    if (!avatarInstanceRef.current) {
+    if (!avatarRef.current) {
       console.error('Avatar instance not available');
       return;
     }
@@ -123,7 +131,7 @@ function InteractiveAvatar() {
     try {
       console.log('Making avatar speak:', text);
       
-      await avatarInstanceRef.current.speak({
+      await avatarRef.current.speak({
         text: text,
         taskType: TaskType.TALK,
         taskMode: TaskMode.SYNC,
@@ -135,22 +143,24 @@ function InteractiveAvatar() {
     }
   };
 
-  // Use knowledge base for greeting - FIXED: Don't send to LLM
+  // Fix the sendGreeting function
   const sendGreeting = async () => {
     try {
-      console.log('Sending greeting from knowledge base...');
+      console.log('Sending greeting from local knowledge base...');
       const greeting = knowledgeBaseService.getGreeting();
       console.log('Greeting from knowledge base:', greeting);
       
-      // Add greeting to message history as avatar message
+      // Add greeting to message history - Fix the type issue
       handleStreamingTalkingMessage({
         detail: {
           message: greeting,
-          isComplete: true
+          isComplete: true,
+          type: StreamingEvents.AVATAR_TALKING_MESSAGE, // Fix: Use proper enum
+          task_id: 'greeting'
         }
       });
       
-      // Make avatar speak the greeting from knowledge base
+      // Make avatar speak the greeting
       await makeAvatarSpeak(greeting);
       
     } catch (error) {
@@ -158,16 +168,11 @@ function InteractiveAvatar() {
     }
   };
 
-  const startSession = useMemoizedFn(async (isVoiceChat: boolean) => {
+  const startSessionV2 = useMemoizedFn(async (isVoiceChat: boolean) => {
     try {
-      console.log('Starting session...');
-      setIsVoiceChatMode(isVoiceChat);
-      
       const newToken = await fetchAccessToken();
       const avatar = initAvatar(newToken);
-      avatarInstanceRef.current = avatar;
 
-      // Set up event listeners
       avatar.on(StreamingEvents.AVATAR_START_TALKING, (e) => {
         console.log("Avatar started talking", e);
       });
@@ -178,19 +183,94 @@ function InteractiveAvatar() {
         console.log("Stream disconnected");
       });
       avatar.on(StreamingEvents.STREAM_READY, (event) => {
-        console.log("Stream ready:", event.detail);
+        console.log(">>>>> Stream ready:", event.detail);
+      });
+      // Add this to prevent HeyGen from processing voice input
+      avatar.on(StreamingEvents.USER_START, (event) => {
+        console.log(">>>>> User started talking:", event);
+        // We could potentially mute HeyGen's processing here
+      });
+      avatar.on(StreamingEvents.USER_STOP, (event) => {
+        console.log(">>>>> User stopped talking:", event);
+        // We could potentially prevent HeyGen from processing here
+      });
+      // Add this to prevent HeyGen from processing text input
+      avatar.on(StreamingEvents.USER_END_MESSAGE, async (event) => {
+        console.log(">>>>> User end message:", event);
         
-        // Send greeting immediately when stream is ready
-        if (isVoiceChat) {
-          console.log('Sending immediate greeting from knowledge base...');
-          sendGreeting();
+        // Intercept voice input and send to local LLM
+        if (event.detail && event.detail.message) {
+          console.log('🎤 Voice input detected:', event.detail.message);
+          
+          // Set flag to prevent HeyGen from responding
+          setIsLocalLLMProcessing(true);
+          
+          try {
+            // Send to local LLM
+            const response = await sendMessageToLocalLLM(event.detail.message);
+            console.log('✅ Voice processed by local LLM:', response);
+            
+            // Add local LLM response to message history as AVATAR message
+            handleStreamingTalkingMessage({
+              detail: {
+                message: response,
+                isComplete: true,
+                type: StreamingEvents.AVATAR_TALKING_MESSAGE,
+                task_id: 'local_llm_voice_response'
+              }
+            });
+            
+            // Make avatar speak the local LLM response
+            if (avatarRef.current) {
+              console.log('🗣️ Making avatar speak local LLM response');
+              await avatarRef.current.speak({
+                text: response,
+                taskType: TaskType.TALK,
+                taskMode: TaskMode.SYNC,
+              });
+            }
+          } catch (error) {
+            console.error('❌ Error processing voice input:', error);
+            
+            // Fallback: make avatar speak error message
+            if (avatarRef.current) {
+              await avatarRef.current.speak({
+                text: "Sorry, I'm having trouble processing your request. Please try again.",
+                taskType: TaskType.TALK,
+                taskMode: TaskMode.SYNC,
+              });
+            }
+          } finally {
+            setIsLocalLLMProcessing(false);
+          }
         }
+      });
+      avatar.on(StreamingEvents.USER_TALKING_MESSAGE, (event) => {
+        console.log(">>>>> User talking message:", event);
+      });
+      // Prevent HeyGen's automatic responses when we're using local LLM
+      avatar.on(StreamingEvents.AVATAR_TALKING_MESSAGE, (event) => {
+        console.log(">>>>> Avatar talking message:", event);
+        
+        // If we're processing with local LLM, don't let HeyGen respond
+        if (isLocalLLMProcessing) {
+          console.log('🚫 Blocking HeyGen automatic response - using local LLM');
+          // We could potentially cancel the event here if needed
+        }
+      });
+      avatar.on(StreamingEvents.AVATAR_END_MESSAGE, (event) => {
+        console.log(">>>>> Avatar end message:", event);
       });
 
       await startAvatar(config);
 
       if (isVoiceChat) {
         await startVoiceChat();
+        
+        // Send greeting from local knowledge base after session is established
+        setTimeout(async () => {
+          await sendGreeting();
+        }, 3000); // 3 second delay to ensure session is ready
       }
     } catch (error) {
       console.error("Error starting avatar session:", error);
@@ -199,7 +279,6 @@ function InteractiveAvatar() {
 
   useUnmount(() => {
     stopAvatar();
-    avatarInstanceRef.current = null;
   });
 
   useEffect(() => {
@@ -211,87 +290,31 @@ function InteractiveAvatar() {
     }
   }, [mediaStream, stream]);
 
-  const handleSendMessage = async (message: string) => {
-    if (!message.trim() || isProcessing) return;
-    
-    try {
-      // Send to LLM and get response
-      const response = await sendMessageToLLM(message);
-      
-      // Make avatar speak the response
-      await makeAvatarSpeak(response);
-      
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
-
-  const handleStopSession = () => {
-    stopAvatar();
-    setIsVoiceChatMode(false);
-    avatarInstanceRef.current = null;
-  };
-
   return (
     <div className="w-full flex flex-col gap-4">
       <div className="flex flex-col rounded-xl bg-zinc-900 overflow-hidden">
-        <div className="relative w-full aspect-video overflow-hidden flex flex-col items-center justify-center">
+        <div className="relative overflow-visible flex flex-col items-center justify-center w-full max-w-md mx-auto my-4 border border-zinc-700 rounded-lg">
           {sessionState !== StreamingAvatarSessionState.INACTIVE ? (
-            <AvatarVideo ref={mediaStream} />
+            // keep video in a consistent portrait/iPhone-like box
+            <div className="w-full h-[70vh] max-h-[80vh] sm:h-[60vh] sm:max-h-[70vh]">
+              <AvatarVideo ref={mediaStream} />
+            </div>
           ) : (
-            <AvatarConfig config={config} onConfigChange={setConfig} />
+            // config panel scrolls inside the same sized container so fields are not cut
+            <div className="flex flex-col gap-6 w-full max-h-[70vh] overflow-auto p-6">
+              <AvatarConfig config={config} onConfigChange={setConfig} />
+            </div>
           )}
         </div>
         <div className="flex flex-col gap-3 items-center justify-center p-4 border-t border-zinc-700 w-full">
           {sessionState === StreamingAvatarSessionState.CONNECTED ? (
-            <div className="flex flex-col gap-4 w-full">
-              {/* Text Input */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Type your message..."
-                  className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-md text-white"
-                  disabled={isProcessing}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                      handleSendMessage(e.currentTarget.value);
-                      e.currentTarget.value = '';
-                    }
-                  }}
-                />
-                <Button onClick={() => {
-                  const input = document.querySelector('input[placeholder="Type your message..."]') as HTMLInputElement;
-                  if (input && input.value.trim()) {
-                    handleSendMessage(input.value);
-                    input.value = '';
-                  }
-                }} disabled={isProcessing}>
-                  {isProcessing ? <LoadingIcon size={16} /> : 'Send'}
-                </Button>
-              </div>
-
-              {/* Voice Chat Controls */}
-              <div className="flex gap-2 justify-center">
-                <AudioInput />
-                <Button onClick={handleStopSession} variant="destructive">
-                  Stop Session
-                </Button>
-              </div>
-
-              {/* Status Indicators */}
-              {isProcessing && (
-                <div className="text-blue-400 flex items-center gap-2">
-                  <LoadingIcon size={12} className="animate-spin" />
-                  Processing message...
-                </div>
-              )}
-            </div>
+            <AvatarControls />
           ) : sessionState === StreamingAvatarSessionState.INACTIVE ? (
             <div className="flex flex-row gap-4">
-              <Button onClick={() => startSession(true)}>
+              <Button onClick={() => startSessionV2(true)}>
                 Start Voice Chat
               </Button>
-              <Button onClick={() => startSession(false)}>
+              <Button onClick={() => startSessionV2(false)}>
                 Start Text Chat
               </Button>
             </div>
@@ -300,9 +323,16 @@ function InteractiveAvatar() {
           )}
         </div>
       </div>
-
-      {/* Original Message History Component */}
-      <MessageHistory />
+      {sessionState === StreamingAvatarSessionState.CONNECTED && (
+        <MessageHistory />
+      )}
+      {responseInfo && (
+        <div className="text-xs text-green-400 mt-2 p-2 bg-green-900 rounded">
+          <div>✅ Response from: {responseInfo.source}</div>
+          <div>🤖 Model: {responseInfo.model}</div>
+          <div>⏱️ Time: {responseInfo.time}ms</div>
+        </div>
+      )}
     </div>
   );
 }

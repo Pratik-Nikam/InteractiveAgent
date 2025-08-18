@@ -40,7 +40,7 @@ export class KnowledgeBaseService {
       return this.knowledgeBase;
     }
 
-    // Use comprehensive knowledge base
+    // Use your exact wealth management knowledge base
     this.knowledgeBase = {
       persona: {
         name: "Max",
@@ -98,217 +98,138 @@ export class KnowledgeBaseService {
               name: "John Kim",
               advisor: "James Lee",
               status: "ID Verification",
-              pendingStep: "Attestation",
-              responsiblePerson: "Maria Gomez",
-              slaHours: 48,
+              pending_step: "Attestation",
+              responsible_person: "Maria Gomez",
+              sla_hours: 48,
               notes: "Passport uploaded, needs manager attestation"
             },
             {
               name: "Maria Gomez",
               advisor: "Laura Smith",
               status: "Address Proof",
-              pendingStep: "Verification",
-              responsiblePerson: "Anil Kapoor",
-              slaHours: 36,
+              pending_step: "Verification",
+              responsible_person: "Anil Kapoor",
+              sla_hours: 36,
               notes: "Utility bill submitted, pending compliance check"
             },
             {
               name: "Michael Brown",
-              advisor: "David Wilson",
+              advisor: "David Chen",
               status: "Funding",
-              pendingStep: "Treasury posting",
-              responsiblePerson: "Treasury Ops",
-              slaHours: 72,
+              pending_step: "Treasury posting",
+              responsible_person: "Treasury Ops",
+              sla_hours: 72,
               notes: "Wire transfer received, pending posting"
-            },
-            {
-              name: "Priya Mehta",
-              advisor: "Sophie Chen",
-              status: "Account Approval",
-              pendingStep: "Compliance review",
-              responsiblePerson: "David Chen",
-              slaHours: 72,
-              notes: "Tax residency form under review"
-            },
-            {
-              name: "James Wong",
-              advisor: "Emily Davis",
-              status: "Document Rejection",
-              pendingStep: "Updated proof needed",
-              responsiblePerson: "Client",
-              slaHours: 24,
-              notes: "Utility bill over 6 months old"
             }
           ]
         },
         sampleFlows: {
-          flow1: {
-            title: "John Kim Onboarding Delay",
-            agentStart: "Good morning, Sarah. Three client onboardings have stalled past ID verification SLA. Want me to share details?",
+          johnKimOnboarding: {
+            start: "Good morning, Sarah. Three client onboardings have stalled past ID verification SLA. Want me to share details?",
             userQuestion: "What are we waiting on?",
-            agentResponse: "For John Kim, passport uploaded but KYC not updated and document not attested.",
+            response: "For John Kim, passport uploaded but KYC not updated and document not attested.",
             followUp: "Who is it pending with?",
-            followUpResponse: "Lilly from Doc Management uploaded it to AML/KYC portal. Waiting on Maria Gomez to attest. Call Maria?"
+            escalation: "Lilly from Doc Management uploaded it to AML/KYC portal. Waiting on Maria Gomez to attest. Call Maria?"
           },
-          flow2: {
-            title: "Funding Delay (Michael Brown)",
-            agentStart: "Morning, Sarah. Michael Brown's funding hasn't cleared in 72 hours. Want me to follow up?",
-            userQuestion: "Yes.",
-            agentResponse: "Wire transfer received but pending posting in Treasury Ops. Shall I escalate?",
-            followUp: "If Yes",
-            followUpResponse: "Contacting Treasury Ops… Posting confirmed within the hour."
-          },
-          flow3: {
-            title: "Investment Account Approval (Priya Mehta)",
-            agentStart: "Hi, Sarah. Priya Mehta's account approval is in compliance review for 3 days. Expedite?",
-            userQuestion: "Why the delay?",
-            agentResponse: "Compliance is reviewing tax residency form. Pending with David Chen.",
-            followUp: "If Yes",
-            followUpResponse: "Messaging David for priority review."
+          michaelBrownFunding: {
+            start: "Morning, Sarah. Michael Brown's funding hasn't cleared in 72 hours. Want me to follow up?",
+            response: "Wire transfer received but pending posting in Treasury Ops. Shall I escalate?"
           }
         },
         intentTriggers: {
-          clientPending: "What's pending for [client]?",
-          escalate: "Escalate to [person/team]",
+          pendingStatus: "What's pending for [client]?",
+          escalation: "Escalate to [person/team]",
           advisorReminder: "Send reminder to advisor",
           stalledOnboardings: "List stalled onboardings",
           fundingStatus: "Funding status for [client]",
-          approveAccount: "Approve account for [client]"
+          accountApproval: "Approve account for [client]"
         }
       },
       specializedKnowledge: {
         topics: [
-          "Wealth management operations",
           "Client onboarding processes",
           "KYC/AML compliance",
-          "Account funding and treasury operations",
+          "Account funding procedures",
           "Investment account setup",
-          "Advisor relationship management",
-          "SLA monitoring and escalation"
+          "Advisor coordination",
+          "SLA management",
+          "Escalation procedures"
         ],
         capabilities: [
-          "Track onboarding progress and identify bottlenecks",
-          "Monitor SLA compliance and flag delays",
-          "Provide status updates on client accounts",
-          "Suggest escalation paths and next steps",
-          "Coordinate with different teams and stakeholders",
-          "Handle document verification and compliance checks"
+          "Track onboarding progress",
+          "Monitor SLA compliance",
+          "Coordinate with advisors",
+          "Escalate urgent issues",
+          "Provide status updates",
+          "Suggest resolution steps"
         ]
       },
       conversationFlow: {
-        greeting: "Good morning, Sarah. I see 3 client onboardings have stalled at ID verification for 48+ hours. Want me to send e‑ID reminders, prefill the missing fields, and notify their advisors so we don't breach SLA?",
-        farewell: "Is there anything else you'd like me to check or escalate?",
-        clarification: "Sorry, didn't catch that. Could you repeat?",
-        confirmation: "Let me make sure I understand correctly...",
-        followUp: "What would you like me to do next?",
-        escalation: "Shall I escalate this to the appropriate team?",
-        statusUpdate: "I'll monitor this and update you on any changes."
+        greeting: "Good morning, Sarah. Several onboarding tasks are close to or past SLA. Want me to go over them and suggest the quickest way to resolve?",
+        farewell: "Is there anything else you need help with regarding the onboarding tasks?",
+        clarification: "Could you clarify which client or process you're referring to?",
+        confirmation: "I'll proceed with that action. Should I update you once it's completed?",
+        followUp: "I'll follow up on this and get back to you within the hour.",
+        escalation: "This requires escalation. I'll contact the appropriate team immediately.",
+        statusUpdate: "Here's the current status and next steps for resolution."
       }
     };
 
-    console.log('Loaded comprehensive knowledge base:', this.knowledgeBase);
     return this.knowledgeBase;
   }
 
-  // Get proactive greeting with specific issues
-  getProactiveGreeting(): string {
-    return "Good morning, Sarah. I see 3 client onboardings have stalled at ID verification for 48+ hours. Want me to send e‑ID reminders, prefill the missing fields, and notify their advisors so we don't breach SLA?";
-  }
-
-  // NEW: Create intelligent prompt that makes the LLM act as a wealth management assistant
-  async generateIntelligentPrompt(message: string, conversationHistory: any[] = []): Promise<string> {
-    const kb = await this.loadKnowledgeBase();
-    
-    // Build conversation context
-    const history = conversationHistory
-      .map((msg: any) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-      .join('\n');
-
-    // Get current issues from knowledge base
-    const stalledClients = this.getStalledOnboardings();
-    const currentIssues = stalledClients.map(client => 
-      `${client.name}: ${client.status} - ${client.pendingStep} (${client.slaHours}h overdue, pending with ${client.responsiblePerson})`
-    ).join('\n');
-
-    // Create a more intelligent prompt
-    const intelligentPrompt = `You are Max, a Wealth Management Operations Assistant. Your role is to proactively identify and resolve issues in client onboarding processes.
-
-CURRENT CLIENT ISSUES:
-${currentIssues}
-
-AVAILABLE ACTIONS:
-- Send e-ID reminders to clients
-- Prefill missing fields in forms
-- Notify advisors about pending items
-- Escalate to compliance team
-- Contact treasury for funding issues
-- Update SLA status
-
-CONVERSATION HISTORY:
-${history}
-
-USER MESSAGE: ${message}
-
-INSTRUCTIONS:
-1. If this is the first message, proactively identify the most critical issues
-2. Always reference specific client names and their specific problems
-3. Offer concrete next steps (e.g., "I'll send e-ID reminders to John Kim and Maria Gomez")
-4. Keep responses concise (2-3 sentences max)
-5. Focus on wealth management operations only
-
-ASSISTANT:`;
-
-    return intelligentPrompt;
-  }
-
-  async generatePrompt(message: string, conversationHistory: any[] = []): Promise<string> {
-    // Use the intelligent prompt instead of the basic one
-    return this.generateIntelligentPrompt(message, conversationHistory);
-  }
-
-  getIntroduction(): string {
-    return this.knowledgeBase?.introduction || "Good morning, Sarah. I see 3 client onboardings have stalled at ID verification for 48+ hours. Want me to send e‑ID reminders, prefill the missing fields, and notify their advisors so we don't breach SLA?";
-  }
-
-  getConversationStarters(): string[] {
-    return this.knowledgeBase?.conversationStarters || ["Good morning, Sarah. I see 3 client onboardings have stalled at ID verification for 48+ hours. Want me to send e‑ID reminders, prefill the missing fields, and notify their advisors so we don't breach SLA?"];
+  getGreeting(): string {
+    return this.knowledgeBase?.introduction || "Good morning, Sarah. How can I help you today?";
   }
 
   getRandomConversationStarter(): string {
-    const starters = this.getConversationStarters();
-    return starters[Math.floor(Math.random() * starters.length)];
+    const starters = this.knowledgeBase?.conversationStarters || [];
+    return starters[Math.floor(Math.random() * starters.length)] || this.getGreeting();
   }
 
-  getGreeting(): string {
-    return this.getProactiveGreeting();
+  async generatePrompt(message: string, conversationHistory: any[] = []): Promise<string> {
+    const kb = await this.loadKnowledgeBase();
+    
+    // Format conversation history
+    const historyText = conversationHistory
+      .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+      .join('\n');
+    
+    // Create context string
+    const context = `
+Key Processes: ${JSON.stringify(kb.wealthManagementContext.keyProcesses, null, 2)}
+Client Dataset: ${JSON.stringify(kb.wealthManagementContext.clientDataset, null, 2)}
+Sample Flows: ${JSON.stringify(kb.wealthManagementContext.sampleFlows, null, 2)}
+Intent Triggers: ${JSON.stringify(kb.wealthManagementContext.intentTriggers, null, 2)}
+    `.trim();
+
+    // Build the prompt
+    const prompt = kb.promptTemplate
+      .replace('{persona}', kb.persona.name)
+      .replace('{role}', kb.persona.role)
+      .replace('{traits}', kb.persona.traits.join(', '))
+      .replace('{rules}', kb.rules.join('. '))
+      .replace('{context}', context)
+      .replace('{history}', historyText)
+      .replace('{message}', message);
+
+    return prompt;
   }
 
-  getClientData(clientName?: string) {
+  // Method to get specific client information
+  getClientInfo(clientName: string): any {
     const clients = this.knowledgeBase?.wealthManagementContext.clientDataset.clients || [];
-    if (clientName) {
-      return clients.find((client: any) => 
-        client.name.toLowerCase().includes(clientName.toLowerCase())
-      );
-    }
-    return clients;
+    return clients.find(client => 
+      client.name.toLowerCase().includes(clientName.toLowerCase())
+    );
   }
 
-  getStalledOnboardings() {
-    const clients = this.getClientData();
-    return clients.filter((client: any) => client.slaHours > 24);
-  }
-
-  // NEW: Get specific client issues for better responses
-  getClientIssues(clientName?: string) {
-    if (clientName) {
-      const client = this.getClientData(clientName);
-      if (client) {
-        return `${client.name} has ${client.status} pending - ${client.pendingStep} (${client.slaHours}h overdue, pending with ${client.responsiblePerson})`;
-      }
-    }
-    return null;
+  // Method to get all stalled clients
+  getStalledClients(): any[] {
+    const clients = this.knowledgeBase?.wealthManagementContext.clientDataset.clients || [];
+    return clients.filter(client => client.sla_hours > 24);
   }
 }
 
-// Singleton instance
+// Export singleton instance
 export const knowledgeBaseService = new KnowledgeBaseService();

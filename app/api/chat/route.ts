@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getLLMConfig } from '@/config/llm-config';
 import { knowledgeBaseService } from '@/services/knowledgeBaseService';
 
-// Function to clean and truncate response
+// Function to clean and truncate response for avatar speech
 function cleanResponse(text: string): string {
   let cleaned = text.trim();
   
@@ -15,16 +15,16 @@ function cleanResponse(text: string): string {
     }
   }
   
-  // Limit to very short length for avatar speech
-  if (cleaned.length > 80) {
-    cleaned = cleaned.substring(0, 80).trim();
+  // Limit to appropriate length for avatar speech (wealth management responses can be longer)
+  if (cleaned.length > 150) {
+    cleaned = cleaned.substring(0, 150).trim();
     // Try to end at a sentence
     const lastPeriod = cleaned.lastIndexOf('.');
     const lastExclamation = cleaned.lastIndexOf('!');
     const lastQuestion = cleaned.lastIndexOf('?');
     const lastEnd = Math.max(lastPeriod, lastExclamation, lastQuestion);
     
-    if (lastEnd > 40) {
+    if (lastEnd > 80) {
       cleaned = cleaned.substring(0, lastEnd + 1);
     }
   }
@@ -32,13 +32,20 @@ function cleanResponse(text: string): string {
   return cleaned;
 }
 
+// Add this function to add a marker
+function addResponseMarker(text: string, model: string): string {
+  return `[${model}] ${text}`;
+}
+
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const { message, conversationHistory = [] } = await request.json();
     const config = getLLMConfig();
 
     console.log('Received message:', message);
-    console.log('Conversation history length:', conversationHistory.length);
+    console.log('Using model:', config.ollama.model);
 
     // Generate prompt using knowledge base
     const fullPrompt = await knowledgeBaseService.generatePrompt(message, conversationHistory);
@@ -57,8 +64,8 @@ export async function POST(request: NextRequest) {
         options: {
           temperature: config.ollama.temperature,
           top_p: config.ollama.topP,
-          max_tokens: 50, // Very short responses for avatar speech
-          num_predict: 50,
+          max_tokens: config.ollama.maxTokens,
+          num_predict: config.ollama.maxTokens,
           stop: config.ollama.stopSequences,
         }
       }),
@@ -76,12 +83,22 @@ export async function POST(request: NextRequest) {
     const cleanResponseText = cleanResponse(data.response);
     console.log('Cleaned response:', cleanResponseText);
     
+    // Add marker to show it's from local LLM
+    const markedResponse = addResponseMarker(cleanResponseText, config.ollama.model);
+    
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+    
+    console.log(`Response time: ${responseTime}ms`);
+    
     return NextResponse.json({
-      response: cleanResponseText,
+      response: markedResponse,
+      model: config.ollama.model,
+      responseTime: responseTime,
       conversationHistory: [
         ...conversationHistory,
         { role: 'user', content: message },
-        { role: 'assistant', content: cleanResponseText }
+        { role: 'assistant', content: markedResponse }
       ]
     });
 
